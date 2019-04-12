@@ -11,9 +11,12 @@ class SpreadLines:
         self.img_data = pixels
         self.bucket=bucket
 
-    
+    @jit
     def drawline(self,curve_points):
+        maxc=0
         for i in range(1, len(curve_points)):
+            if (i%100==0):
+                print("point: "+str(i))
             WIDTH=self.img_data.shape[0]
             HEIGHT=self.img_data.shape[1]
             sp = curve_points[i]
@@ -44,8 +47,8 @@ class SpreadLines:
                         # c is previous color, now substract the new value from the current one
                         # note, we are working with a white base img and only in greyscale so far
                         newc = c + color_gradient
-                        if newc > 255.0:
-                            #doesn't go whiter than white
-                            newc = 255.0
+                        if newc >maxc:
+                            maxc=newc
                         # print(newc)
                         self.img_data[int(tx), int(ty)] = newc
+        return maxc

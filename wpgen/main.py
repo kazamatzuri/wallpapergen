@@ -6,10 +6,11 @@ from PIL import Image
 import numpy as np
 from spreadlines.spreadlines import SpreadLines
 from geomdl import BSpline, knotvector
-from random import random
-from numpy import pi,sin
-from numba import jit
+from random import random,randint
+from numpy import pi,sin,cos
+#from numba import jit
 
+TWOPI=2*pi
 def parse_args(args):
     parser = argparse.ArgumentParser(description="WP Generator")
     parser.add_argument(
@@ -26,30 +27,66 @@ def parse_args(args):
         dest="loglevel",
         help="set log level:DEBUG,INFO,WARNING,ERROR,CRITICAL. The default is INFO",
     )
+    parser.add_argument(
+        "-t"
+        "--type",
+        dest="type",
+        help="set log type:lines,circle. The default is lines",
+    )
     return parser.parse_args(args)
 
 
-def splinei(WIDTH,HEIGHT):
+def circlespread(WIDTH,HEIGHT,RADIUS,WOBBLE,MAX_SPLINE_WIDTH,pnum):
+    return [[cos(t)*RADIUS+(random()-0.5)*WOBBLE+WIDTH/2, sin(t)*RADIUS+(random()-0.5)*WOBBLE+HEIGHT/2, randint(0,MAX_SPLINE_WIDTH)]  for t in np.linspace(0, TWOPI,pnum)]
+
+
+def splinei_circle(WIDTH,HEIGHT,RADIUS,MAX_SPLINE_WIDTH=120):
     curve = BSpline.Curve()
     curve.degree = 3
     curve.delta = 0.00005
-    lpoints = linespread(WIDTH,HEIGHT)
+    #lpoints = linespread(WIDTH,HEIGHT,MAX_SPLINE_WIDTH)
+
+    pnum=50
+    RADIUS=1000
+    WOBBLE=40
+    lpoints=circlespread(WIDTH,HEIGHT,RADIUS,WOBBLE,MAX_SPLINE_WIDTH,pnum)
+    #print(lpoints)
+    curve.degree = 3
+    curve.ctrlpts = lpoints
+    curve.knotvector = knotvector.generate(3, len(curve.ctrlpts))
+    curve_points = curve.evalpts
+    #print(len(curve_points))
+    yield curve_points
+    while True:
+        for p in lpoints:
+            p[1] += int((random() - 0.5) * (60) )
+            p[0] += int((random() - 0.5) * (60) )
+            p[2] += int((random() - 0.5) * (30) )
+        curve.ctrlpts = lpoints
+        curve_points = curve.evalpts
+        yield curve_points
+
+def splinei_lines(WIDTH,HEIGHT,MAX_SPLINE_WIDTH=120):
+    curve = BSpline.Curve()
+    curve.degree = 3
+    curve.delta = 0.00005
+    lpoints = linespread(WIDTH,HEIGHT,MAX_SPLINE_WIDTH)
     curve.ctrlpts = lpoints
     curve.knotvector = knotvector.generate(3, len(curve.ctrlpts))
     curve_points = curve.evalpts
     yield curve_points
     while True:
         for p in lpoints:
-            p[1] += int((random() - 0.5) * (25) * (sin((p[0]) * (pi / WIDTH)) ** 2))
-            p[0] += int((random() - 0.5) * (5) * (sin((p[0]) * (pi / WIDTH)) ** 2))
-            p[2] += int((random() - 0.5) * (10) * (sin((p[0]) * (pi / WIDTH)) ** 2))
+            p[1] += ((random() - 0.5) * (25) * (sin((p[0]) * (pi / WIDTH)) ** 2))
+            p[0] += ((random() - 0.5) * (5) * (sin((p[0]) * (pi / WIDTH)) ** 2))
+            p[2] += ((random() - 0.5) * (10) * (sin((p[0]) * (pi / WIDTH)) ** 2))
         curve.ctrlpts = lpoints
         curve_points = curve.evalpts
         yield curve_points
 
 
-def linespread(WIDTH,HEIGHT):
-    return [[x, HEIGHT / 2, ((random() - 0.5) * (120) * (sin((x) * (pi / WIDTH))))] for x in range(0, WIDTH, 50)        ]
+def linespread(WIDTH,HEIGHT,MAX_WIDTH):
+    return [[x, HEIGHT / 2, ((random() - 0.5) * (MAX_WIDTH) * (sin((x) * (pi / WIDTH))))] for x in range(0, WIDTH, 50)        ]
 
 def gen(args=None):
     if args == None:
@@ -70,42 +107,61 @@ def gen(args=None):
         else:
             WIDTH = 1440
             HEIGHT = 900
+        if args.type is not None:
+            if args.type.upper()=='LINES':
+                TYPE='LINES'
+            elif args.type.upper()=='CIRCLE':
+                TYPE='CIRCLE'
 
         WIDTH*=4
         HEIGHT*=4
         img = Image.new("RGBA", (WIDTH, HEIGHT), "white")  # create a new white image
         pixels = img.load()  # create the pixel map
         seed()
+
+
         # we use temppixels, because to get nice results we need to do the color calc in float
         # not in ints....
         #we'll start out with all black
         temppixels = np.full((WIDTH, HEIGHT), 0.0)
 
-        sl=SpreadLines(temppixels,5)
-        
-        curve_iterator = splinei(WIDTH,HEIGHT)
-
-        for _ in range(100):
-            curve_points=next(curve_iterator)
-            sl.drawline(curve_points)
-        
+        if TYPE=='LINES':
+            sl=SpreadLines(temppixels,255)  
+            curve_iterator = splinei_lines(WIDTH,HEIGHT,100)
+            for _ in range(100):
+                curve_points=next(curve_iterator)
+                sl.drawline(curve_points)
+        elif TYPE=='CIRCLE':
+            maxc=0
+            sl=SpreadLines(temppixels,255) 
+            RADIUS=100
+            SPREAD=100
+            curve_iterator = splinei_circle(WIDTH, HEIGHT,RADIUS,SPREAD)
+            for i in range(10):
+                print ("loop: "+str(i))
+                curve_points=next(curve_iterator)
+                nm=sl.drawline(curve_points)
+                if nm>maxc:
+                    maxc=nm
+       
+    except Exception as e:
+        print("Error: {}".format(str(e)))
+    finally:
         # map the temp pixels back into the image
         # note: no list comprehension since pixels isn't a list (maybe there is a way to cast it, but I haven't found it yet)
         #since we want the image to be white, we'll inverse the generated colors
+        f=255/maxc
         for x in range(WIDTH):
             for y in range(HEIGHT):
                 # note: doing greyscale for now....
                 pixels[x, y] = (
-                    255-int(temppixels[x, y]),
-                    255-int(temppixels[x, y]),
-                    255-int(temppixels[x, y]),
+                    255-int(f*temppixels[x, y]),
+                    255-int(f*temppixels[x, y]),
+                    255-int(f*temppixels[x, y]),
                     255,
                 )
         img = img.resize((WIDTH, HEIGHT), Image.ANTIALIAS)
         img.save(output)
-    except OSError as e:
-        print("Error: {}".format(str(e)))
-
 
 if __name__ == "__main__":
     # execute only if run as the entry point into the program
