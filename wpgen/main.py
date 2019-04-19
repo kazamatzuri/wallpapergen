@@ -10,6 +10,7 @@ from random import random,randint
 from numpy import pi,sin,cos
 from feronia.feronia import Feronia
 import json
+import sys
 #from numba import jit
 
 temppixels=""
@@ -127,9 +128,15 @@ def merge(ch, method, properties, body):
     WIDTH=ldata['WIDTH']
     HEIGHT=ldata['HEIGHT']
     temppixels=np.add(temppixels,newresult)
+    print(newresult)
+    print(newresult.max())
     jobs-=1
+    
     if (jobs<=0):
+        img = Image.new("RGBA", (WIDTH, HEIGHT), "white")  # create a new white image
+        pixels = img.load()  # create the pixel map
         f=255/temppixels.max()
+        
         temppixels=255-temppixels*f
         for x in range(WIDTH):
              for y in range(HEIGHT):
@@ -140,8 +147,7 @@ def merge(ch, method, properties, body):
                     int(temppixels[x, y]),
                     255,
                 )
-        img = Image.new("RGBA", (WIDTH, HEIGHT), "white")  # create a new white image
-        pixels = img.load()  # create the pixel map
+      
      
         #img = img.resize((WIDTH, HEIGHT), Image.ANTIALIAS)
         img.save("dist.png")
@@ -169,8 +175,8 @@ def gen(args=None):
             WIDTH = args.dim.split(",")[0]
             HEIGHT = args.dim.split(",")[1]
         else:
-            WIDTH = 144
-            HEIGHT = 90
+            WIDTH = 1440
+            HEIGHT = 900
         if args.type is not None:
             if args.type.upper()=='LINES':
                 TYPE='LINES'

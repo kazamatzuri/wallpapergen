@@ -24,7 +24,7 @@ class SpreadLines:
             px, py = lp[0], lp[1]
             x = sp[0]
             y = sp[1]
-            s = sp[2]
+            s = sp[2]            
             if (x - px) != 0:
                 length = math.sqrt((x - px) ** 2 + (y - py) ** 2)
                 dx = -(y - py) / length
@@ -44,8 +44,6 @@ class SpreadLines:
                     # avoid oob errors
                     if (tx >= 0) and (tx < WIDTH) and (ty >= 0) and (ty < HEIGHT):
                         c = self.img_data[int(tx), int(ty)]
-                        # c is previous color, now substract the new value from the current one
-                        # note, we are working with a white base img and only in greyscale so far
                         newc = c + color_gradient
                         if newc >maxc:
                             maxc=newc

@@ -38,7 +38,8 @@ class Feronia:
         curve_points = curve.evalpts
         temppixels = np.full((WIDTH, HEIGHT), 0.0)
         sl=SpreadLines(temppixels,255) 
-        nm=sl.drawline(curve_points)
+        sl.drawline(curve_points)
+        print(sl.img_data.max())
         data={}
         data['WIDTH']=WIDTH
         data['HEIGHT']=HEIGHT
