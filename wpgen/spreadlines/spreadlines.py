@@ -13,10 +13,10 @@ class SpreadLines:
 
     @jit
     def drawline(self,curve_points):
-        maxc=0
+        maxc=0.0
         for i in range(1, len(curve_points)):
-            if (i%100==0):
-                print("point: "+str(i))
+            #if (i%100==0):
+                #print("point: "+str(i))
             WIDTH=self.img_data.shape[0]
             HEIGHT=self.img_data.shape[1]
             sp = curve_points[i]
@@ -30,7 +30,6 @@ class SpreadLines:
                 dx = -(y - py) / length
                 dy = (x - px) / length               
                 #going to spread <bucket> amount of color
-
                 tx1,ty1 = x + s * dx,y + s * dy
                 tx2,ty2 = x - s * dx,y - s * dy
                 num=int(math.sqrt((tx1-tx2)**2+(ty1-ty2)**2)/0.1)
@@ -45,7 +44,7 @@ class SpreadLines:
                     if (tx >= 0) and (tx < WIDTH) and (ty >= 0) and (ty < HEIGHT):
                         c = self.img_data[int(tx), int(ty)]
                         newc = c + color_gradient
-                        if newc >maxc:
+                        if newc > maxc:
                             maxc=newc
                         # print(newc)
                         self.img_data[int(tx), int(ty)] = newc

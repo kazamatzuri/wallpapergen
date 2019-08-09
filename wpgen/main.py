@@ -38,19 +38,7 @@ def parse_args(args):
         "--type",
         dest="type",
         help="set log type:lines,circle. The default is lines",
-    )
-    parser.add_argument(
-        "--worker",
-        type=str,
-        dest="worker",
-        help="enable worker mode, connecting to rabbit mq @ host"
-    )
-    parser.add_argument(
-        "--distribute",
-        type=str,
-        dest="distribute",
-        help="activate distributed mode, connecting to rabbitmq @ host"
-
+        default="LINES"
     )
     return parser.parse_args(args)
 
@@ -190,56 +178,27 @@ def gen(args=None):
         img = Image.new("RGBA", (WIDTH, HEIGHT), "white")  # create a new white image
         pixels = img.load()  # create the pixel map
      
-        if (args.distribute is None) and (args.worker is None):
-            # we use temppixels, because to get nice results we need to do the color calc in float
-            # not in ints....
-            #we'll start out with all black
-            temppixels = np.full((WIDTH, HEIGHT), 0.0)
-            if TYPE=='LINES':
-                sl=SpreadLines(temppixels,255)  
-                curve_iterator = splinei_lines(WIDTH,HEIGHT,100)
-                for _ in range(100):
-                    curve_points=next(curve_iterator)
-                    sl.drawline(curve_points)
-            elif TYPE=='CIRCLE':
-                maxc=0
-                sl=SpreadLines(temppixels,255) 
-                RADIUS=100
-                SPREAD=100
-                curve_iterator = splinei_circle(WIDTH, HEIGHT,RADIUS,SPREAD)
-                for i in range(10):
-                    print ("loop: "+str(i))
-                    curve_points=next(curve_iterator)
-                    nm=sl.drawline(curve_points)
-                    if nm>maxc:
+        temppixels = np.full((WIDTH, HEIGHT), 0.0)
+        if TYPE=='LINES':
+            sl=SpreadLines(temppixels,255)  
+            curve_iterator = splinei_lines(WIDTH,HEIGHT,100)
+            for _ in range(100):
+                curve_points=next(curve_iterator)
+                nm=sl.drawline(curve_points)
+                if nm>maxc:
+                    maxc=nm
+        elif TYPE=='CIRCLE':
+            maxc=0
+            sl=SpreadLines(temppixels,255) 
+            RADIUS=100
+            SPREAD=100
+            curve_iterator = splinei_circle(WIDTH, HEIGHT,RADIUS,SPREAD)
+            for i in range(1):
+                print ("loop: "+str(i))
+                curve_points=next(curve_iterator)
+                nm=sl.drawline(curve_points)
+                if nm>maxc:
                         maxc=nm
-        elif args.worker is not None:
-            eng=Feronia(args.worker)
-            eng.startWoker()
-        elif args.distribute is not None:
-            eng=Feronia(args.distribute,response_callback=merge)
-            
-            #queueing work
-            for i in range(10):   
-                maxc=0
-                RADIUS=100
-                SPREAD=100
-                data={}
-                data['RADIUS']=100
-                data['WIDTH']=WIDTH
-                data['HEIGHT']=HEIGHT
-                data['SPREAD']=SPREAD
-                curve_iterator = splinei_basepoints_circle(WIDTH, HEIGHT,RADIUS,SPREAD)
-                for i in range(10):
-                    print ("loop: "+str(i))
-                    jobs+=1
-                    data['points']=next(curve_iterator)
-                    eng.queueWork(data)
-
-            #now collecting results
-            eng.channel.basic_consume(queue='feronia_result',on_message_callback=merge,auto_ack=False)
-            print(' [*] Waiting for results. To exit press CTRL+C')
-            eng.channel.start_consuming()
 
     finally:
         print("done")  
@@ -249,18 +208,19 @@ def gen(args=None):
         # map the temp pixels back into the image
         # note: no list comprehension since pixels isn't a list (maybe there is a way to cast it, but I haven't found it yet)
         #since we want the image to be white, we'll inverse the generated colors
-        # f=255/maxc
-        # for x in range(WIDTH):
-        #     for y in range(HEIGHT):
-        #         # note: doing greyscale for now....
-        #         pixels[x, y] = (
-        #             255-int(f*temppixels[x, y]),
-        #             255-int(f*temppixels[x, y]),
-        #             255-int(f*temppixels[x, y]),
-        #             255,
-        #         )
-        # img = img.resize((WIDTH, HEIGHT), Image.ANTIALIAS)
-        # img.save(output)
+    f=1/maxc
+    print("max color:" + str(maxc))
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            # note: doing greyscale for now....
+            pixels[x, y] = (
+                int(255*(1-(f*temppixels[x, y])^2)),
+                int(255*(1-(f*temppixels[x, y])^2)),
+                int(255*(1-(f*temppixels[x, y])^2)),
+                255,
+            )
+    img = img.resize((WIDTH, HEIGHT), Image.ANTIALIAS)
+    img.save(output)
 
 if __name__ == "__main__":
     # execute only if run as the entry point into the program
