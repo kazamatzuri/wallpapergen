@@ -159,6 +159,7 @@ function main() {
         var curve = new THREE.SplineCurve(p);   
         var points = curve.getPoints(width*10);
         var v=drawline_spread(points,spread,[255,0,0,Math.floor(255-((t/iterations)*255))]);
+        drawline(points,[255,0,0,Math.floor(255-((t/iterations)*255))])
         if (v>max) max=v;
       }
     //drawrandom();
