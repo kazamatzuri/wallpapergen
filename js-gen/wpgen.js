@@ -10,7 +10,8 @@ canvas.width=width;
 canvas.height=height;
 var ctx = canvas.getContext('2d');
 var img = ctx.getImageData(0,0,width, height);
-var data= img.data;
+var pdata= img.data;
+var data=[];
 var resetImg  = false; 
 
 function $(id)
@@ -18,13 +19,12 @@ function $(id)
   return document.getElementById(id);
 }
 
-function basepoints() {
+function basepoints(d=30) {
     var points=[]
     for (var t=0.0;t<steps;t++){       
         var x=(width/steps)*t;
-        var y=Math.sin(x/40)*30;
-        var z= Math.sin(x/30)*25;
-        points.push(new THREE.Vector3(x,y,z));
+        var y=Math.sin(x/40)*d;
+        points.push(new THREE.Vector2(x,y));
     }
     return points;
 }
@@ -36,14 +36,32 @@ function setPixel(x,y,color) {
     y=Math.floor(y);
     var offset=(y*width+x)*4;
     var max = data[offset];
-    data[offset++]+=color[0];
+    data[offset++]=color[0];
     if (data[offset-1]>max){ max = data[offset-1];}
-    data[offset++]+=color[1];
+    data[offset++]=color[1];
     if (data[offset-1]>max){ max = data[offset-1];}
-    data[offset++]+=color[2];
+    data[offset++]=color[2];
     if (data[offset-1]>max){ max = data[offset-1];}
+    data[offset++]=color[3];
+    if (data[offset-1]>max){ max = data[offset-1];}
+    return max;
+}
+
+function addToPixel(x,y,color) {
+    x=Math.floor(x);
+    y=Math.floor(y);
+    var offset=(y*width+x)*4;
+    //var max = data[offset];
+    var max=0.0;
+    data[offset++]=color[0];
+    // if (data[offset-1]>max){ max = data[offset-1];}
+    data[offset++]=color[1];
+    // if (data[offset-1]>max){ max = data[offset-1];}
+    data[offset++]=color[2];
+    // if (data[offset-1]>max){ max = data[offset-1];}
     data[offset++]+=color[3];
     if (data[offset-1]>max){ max = data[offset-1];}
+    console.log(max);
     return max;
 }
 
@@ -70,48 +88,38 @@ function makeArr(startValue, stopValue, cardinality) {
   }
 
 function drawline_spread(points,spread,c) {
-    var max=0;
-    var bucket=100;
+    var max=0.0;
+    var bucket=255.0;
+    var d=40.0;
+    var stepsize=1;
+    var snum=d/stepsize;
+    var gradient=bucket/snum;
     console.log(points.length);
     for (var i=1;i<points.length;i++){
-        var sp=points[i];
-        var lp=points[i-1];
-        var px=lp.x;
-        var py=lp.y;
-        var x = sp.x;
-        var y = sp.y;
-        var s = spread[i];            
-        if ((x - px) != 0) {
-            var length = Math.sqrt((x - px) ** 2 + (y - py) ** 2)
-            var dx = -(y - py) / length
-            var dy = (x - px) / length               
-            //going to spread <bucket> amount of color
-            var tx1 = x + s * dx;
-            var ty1=y + s * dy;
-            var tx2=x - s * dx;
-            var ty2 = y - s * dy;
-            var num=Math.round(Math.sqrt((tx1-tx2)**2+(ty1-ty2)**2)/0.5)
-            if (num==NaN) {
-                num=1;
-            }
-            var color_gradient=bucket/num;
-            var xr=makeArr(tx1,tx2,num);
-            var yr=makeArr(ty1,ty2,num);
-            for (var i; i<num-1; i++){
-                var tx=xr[i]; 
-                var ty=yr[i];
-                // avoid oob errors
-                if ((tx >= 0) & (tx < width) & (ty >= 0) & (ty < height))
-                    {   
-                        //TODO: getpixel
-                        var c = getPixel(tx,ty);
-                        var newc=[255,255,255,255];                     
-                        //self.img_data[int(tx), int(ty)] = newc
-                        var v=setPixel(tx,ty+(height/2),newc);
-                        if (v>max) max=v; 
-                }
-            }   
+        d=spread[i].y**2;
+        snum=d/stepsize;
+        gradient=bucket/snum;
+    
+        var p=points[i];
+        var l=points[i-1];
+        var v={};
+        v.x=p.x-l.x;
+        v.y=p.y-l.y;
+        var r={};
+        r.x=-v.y;
+        r.y=v.x;
+        
+        //var val=setPixel(p.x,p.y+height/2,[255,0,0,gradient]); 
+        //if (val>max) {max=val;}
+        for (var t=-(d/2);t<(d/2);t+=stepsize){
+            var val=addToPixel(p.x+t*r.x,p.y+t*r.y+height/2,[255,0,0,gradient]);
+            //console.log(gradient);
+            //var val=setPixel(p.x+t*r.x,p.y+t*r.y+height/2,[255,0,0,200]);  
+            if (val>max) {max=val;}  
         }
+        //console.log(max);
+
+        
     
     }
     return max
@@ -146,26 +154,28 @@ function main() {
         
       }
       var p = basepoints();
-      var spread=[];
-      var max=0;
+      var spread=basepoints(20);
+      var max=0.0;
 
-      var iterations=5;
+      var iterations=1;
       for (var t=0;t<iterations;t++) {
           for (var s=0;s<p.length;s++){
               p[s].y+=(Math.random()-0.5)*((p.length/2-Math.abs(s-p.length/2))^2);
-              spread[s]=p[s].z;
               //p[s].x+=(Math.random()-0.5);
           }
         var curve = new THREE.SplineCurve(p);   
+        var spreadcurve= new THREE.SplineCurve(spread)
         var points = curve.getPoints(width*10);
-        var v=drawline_spread(points,spread,[255,0,0,Math.floor(255-((t/iterations)*255))]);
-        drawline(points,[255,0,0,Math.floor(255-((t/iterations)*255))])
+        var spoints = spreadcurve.getPoints(width*10);
+        var v=drawline_spread(points,spoints,[255,0,0,Math.floor(255-((t/iterations)*255))]);
+        //drawline(points,[255,0,0,Math.floor(255-((t/iterations)*255))])
         if (v>max) max=v;
       }
     //drawrandom();
-    //   for (var t=0;t<data.length;t++){
-    //       data[t]=(data[t]/max)*155;
-    //   }
+      for (var t=0;t<pdata.length;t++){
+          pdata[t]=Math.floor((data[t]/max)*255);
+      }
+      console.log("max");
       console.log(max);
     ctx.putImageData(img,0,0);
 	
