@@ -105,7 +105,6 @@ def splinetest(pixels):
                         pixels[int(tx), int(ty)] = newc
 
 
-# In[ ]:
 
 img = Image.new("RGBA", (WIDTH, HEIGHT), "white")  # create a new white image
 pixels = img.load()  # create the pixel map
