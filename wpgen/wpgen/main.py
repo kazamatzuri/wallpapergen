@@ -2,6 +2,8 @@ import argparse
 import logging
 import sys
 
+from core import Core
+
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description="WP Generator")
@@ -39,8 +41,10 @@ def gen(args=None):
             WIDTH = args.dim.split(",")[0]
             HEIGHT = args.dim.split(",")[1]
         else:
-            WIDTH = 1440
-            HEIGHT = 900
+            WIDTH = None
+            HEIGHT = None
+        core = Core(width=WIDTH, height=HEIGHT)
+
     finally:
         print("done")
 
