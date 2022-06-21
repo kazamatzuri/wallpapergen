@@ -13,7 +13,7 @@ setup(
     tests_require=["nose"],
     install_requires=[
         "pytz==2018.5",
-        "numpy==1.15.1",
+        "numpy==1.22.0",
         "pandas==0.23.4",
         "gitchangelog>=3.0.4",
         "pre-commit>=1.14.4",
